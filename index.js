@@ -951,50 +951,57 @@ async function handleButton(interaction) {
     });
   }
 
-    if (row.host_id !== interaction.user.id && !staffOk) {
-      return interaction.reply({ content: 'Only the host or staff can end this mass.', ephemeral: true });
-    }
-
-    if (row.status !== 'active') {
-      return interaction.reply({ content: `This mass is already **${row.status}**.`, ephemeral: true });
-    }
-
-    db.prepare(`
-      UPDATE mass_sessions
-      SET ended_at = ?, status = 'awaiting_proof'
-      WHERE id = ?
-    `).run(Date.now(), row.id);
-
-    const updated = loadMassById(interaction.guildId, row.id);
-    const embed = buildMassEmbed(updated, settings, 'Awaiting proof from host');
-    const disabledRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`mass_end:${row.id}`)
-        .setLabel('End Mass')
-        .setStyle(ButtonStyle.Danger)
-        .setDisabled(true),
-    );
-
-    // Disable the button on the public mass post
-    if (updated.mass_channel_id && updated.mass_message_id) {
-      const massChannel = await interaction.guild.channels.fetch(updated.mass_channel_id).catch(() => null);
-      if (massChannel && massChannel.type === ChannelType.GuildText) {
-        const massMessage = await massChannel.messages.fetch(updated.mass_message_id).catch(() => null);
-        if (massMessage) {
-          await massMessage.edit({
-  embeds: [embed],
-  components: [disabledRow],
-});
-        }
-      }
-    }
-
-    await interaction.followUp({
-  content: 'Mass ended. Please submit proof with `/mass proof`.',
-  ephemeral: true
-});
+  if (row.host_id !== interaction.user.id && !staffOk) {
+    return interaction.reply({
+      content: 'Only the host or staff can end this mass.',
+      ephemeral: true
+    });
   }
 
+  if (row.status !== 'active') {
+    return interaction.reply({
+      content: `This mass is already **${row.status}**.`,
+      ephemeral: true
+    });
+  }
+
+  db.prepare(`
+    UPDATE mass_sessions
+    SET ended_at = ?, status = 'awaiting_proof'
+    WHERE id = ?
+  `).run(Date.now(), row.id);
+
+  const updated = loadMassById(interaction.guildId, row.id);
+
+  const embed = buildMassEmbed(updated, settings, 'Awaiting proof from host');
+
+  const disabledRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`mass_end:${row.id}`)
+      .setLabel('End Mass')
+      .setStyle(ButtonStyle.Danger)
+      .setDisabled(true),
+  );
+
+  if (updated.mass_channel_id && updated.mass_message_id) {
+    const massChannel = await interaction.guild.channels.fetch(updated.mass_channel_id).catch(() => null);
+    if (massChannel && massChannel.type === ChannelType.GuildText) {
+      const massMessage = await massChannel.messages.fetch(updated.mass_message_id).catch(() => null);
+      if (massMessage) {
+        await massMessage.edit({
+          embeds: [embed],
+          components: [disabledRow],
+        });
+      }
+    }
+  }
+
+  await interaction.followUp({
+    content: 'Mass ended. Please submit proof with `/mass proof`.',
+    ephemeral: true
+  });
+
+}
   if (kind === 'mass_approve') {
     if (!staffOk) return interaction.reply({ content: 'Only staff can approve mass logs.', ephemeral: true });
     const row = loadMassById(interaction.guildId, id);
@@ -1169,4 +1176,5 @@ const token = process.env.DISCORD_TOKEN;
 if (!token) {
   throw new Error('Missing DISCORD_TOKEN in .env');
 }
+  
 client.login(token);
