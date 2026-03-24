@@ -1169,12 +1169,14 @@ client.on('interactionCreate', async interaction => {
     } else {
       await interaction.reply({ content: msg, ephemeral: true }).catch(() => null);
     }
-  }
+    }
 });
+
+}  // <-- ADD THIS LINE
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
   throw new Error('Missing DISCORD_TOKEN in .env');
 }
-  
+
 client.login(token);
