@@ -492,6 +492,7 @@ async function handleStaffList(interaction) {
 async function handleMass(interaction, sub) {
   const settings = getGuildSettings(interaction.guildId);
   if (sub === 'start') {
+    await interaction.deferReply({ ephemeral: true });
     const existing = loadLatestActiveMass(interaction.guildId, interaction.user.id);
 if (existing) {
   return interaction.reply({
@@ -561,7 +562,6 @@ if (existing) {
 
     return interaction.reply({
       content: `Mass posted in ${massChannel}. Session ID: **${row.id}**`,
-      ephemeral: true
     });
   }
 
