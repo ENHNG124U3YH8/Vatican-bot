@@ -393,17 +393,25 @@ async function handleSetup(interaction) {
   }
   
   if (sub === 'mass_channel') {
-    const channel = interaction.options.getChannel('channel', true);
-    updateGuildField(interaction.guildId, 'mass_channel_id', channel.id);
-    return interaction.reply({ content: `Mass channel set to ${channel}.`, ephemeral: true });
-  }
+  const channel = interaction.options.getChannel('channel', true);
+  updateGuildField(interaction.guildId, 'mass_channel_id', channel.id);
+
+  return interaction.reply({
+    content: `Mass channel set to ${channel}.`,
+    ephemeral: true
+  });
+}
   
   if (sub === 'mass_approval_channel') {
-    const channel = interaction.options.getChannel('channel', true);
-    updateGuildField(interaction.guildId, 'mass_approval_channel_id', channel.id);
-    return interaction.reply({ content: `Mass approval channel set to ${channel}.`, ephemeral: true });
-  }
+  const channel = interaction.options.getChannel('channel', true);
+  updateGuildField(interaction.guildId, 'mass_approval_channel_id', channel.id);
 
+  return interaction.reply({
+    content: `Mass approval channel set to ${channel}.`,
+    ephemeral: true
+  });
+}
+  
   if (sub === 'moderation_activity_channel') {
     const channel = interaction.options.getChannel('channel', true);
     updateGuildField(interaction.guildId, 'moderation_activity_channel_id', channel.id);
