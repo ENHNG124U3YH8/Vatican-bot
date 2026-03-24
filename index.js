@@ -939,10 +939,13 @@ async function handleButton(interaction) {
   const memberOk = isRegistered(interaction.guildId, interaction.user.id) || staffOk;
 
  if (kind === 'mass_end') {
+
+  await interaction.deferUpdate();
+
   const row = loadMassById(interaction.guildId, id);
 
   if (!row) {
-    return interaction.reply({
+    return interaction.followUp({
       content: 'That mass session could not be found.',
       ephemeral: true
     });
