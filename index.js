@@ -492,6 +492,13 @@ async function handleStaffList(interaction) {
 async function handleMass(interaction, sub) {
   const settings = getGuildSettings(interaction.guildId);
   if (sub === 'start') {
+    const existing = loadLatestActiveMass(interaction.guildId, interaction.user.id);
+if (existing) {
+  return interaction.reply({
+    content: `You already have an active mass (#${existing.id}). End it before starting another.`,
+    ephemeral: true
+  });
+}
     if (!requireRegisteredOrStaff(interaction, settings)) {
       return interaction.reply({ content: 'Only registered users can use the bot.', ephemeral: true });
     }
