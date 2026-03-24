@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   bootstrap_staff_role_id TEXT,
   staff_role_id TEXT,
   timezone TEXT NOT NULL DEFAULT 'Pacific/Auckland',
+  mass_channel_id TEXT,
   mass_approval_channel_id TEXT,
   moderation_activity_channel_id TEXT,
   moderation_approval_channel_id TEXT,
@@ -60,6 +61,8 @@ CREATE TABLE IF NOT EXISTS mass_sessions (
   started_at INTEGER NOT NULL,
   ended_at INTEGER,
   proof_url TEXT,
+  mass_channel_id TEXT,
+  mass_message_id TEXT,
   approval_channel_id TEXT,
   approval_message_id TEXT,
   approved_by TEXT,
@@ -313,6 +316,15 @@ function loadLatestPendingMass(guildId, hostId) {
   `).get(guildId, hostId);
 }
 
+function loadLatestActiveMass(guildId, hostId) {
+  return db.prepare(`
+    SELECT * FROM mass_sessions
+    WHERE guild_id = ? AND host_id = ? AND status = 'active'
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(guildId, hostId);
+}
+
 function loadActiveShift(guildId, moderatorId) {
   return db.prepare(`
     SELECT * FROM mod_shifts
@@ -379,7 +391,13 @@ async function handleSetup(interaction) {
     updateGuildField(interaction.guildId, 'timezone', zone);
     return interaction.reply({ content: `Timezone set to **${zone}**.`, ephemeral: true });
   }
-
+  
+  if (sub === 'mass_channel') {
+    const channel = interaction.options.getChannel('channel', true);
+    updateGuildField(interaction.guildId, 'mass_channel_id', channel.id);
+    return interaction.reply({ content: `Mass channel set to ${channel}.`, ephemeral: true });
+  }
+  
   if (sub === 'mass_approval_channel') {
     const channel = interaction.options.getChannel('channel', true);
     updateGuildField(interaction.guildId, 'mass_approval_channel_id', channel.id);
@@ -462,6 +480,7 @@ async function handleStaffList(interaction) {
       { name: 'Bootstrap staff role', value: settings.bootstrap_staff_role_id ? `<@&${settings.bootstrap_staff_role_id}>` : 'Not set', inline: false },
       { name: 'Main staff role', value: settings.staff_role_id ? `<@&${settings.staff_role_id}>` : 'Not set', inline: false },
       { name: 'Timezone', value: settings.timezone, inline: false },
+      { name: 'Mass channel', value: settings.mass_channel_id ? `<#${settings.mass_channel_id}>` : 'Not set', inline: false },
       { name: 'Mass approval channel', value: settings.mass_approval_channel_id ? `<#${settings.mass_approval_channel_id}>` : 'Not set', inline: false },
       { name: 'Moderation activity channel', value: settings.moderation_activity_channel_id ? `<#${settings.moderation_activity_channel_id}>` : 'Not set', inline: false },
       { name: 'Moderation approval channel', value: settings.moderation_approval_channel_id ? `<#${settings.moderation_approval_channel_id}>` : 'Not set', inline: false },
@@ -477,6 +496,11 @@ async function handleMass(interaction, sub) {
       return interaction.reply({ content: 'Only registered users can use the bot.', ephemeral: true });
     }
 
+    const massChannel = await getApprovalChannel(interaction.guild, settings.mass_channel_id);
+    if (!massChannel) {
+      return interaction.reply({ content: 'Mass channel is not set yet. Ask staff to use `/setup mass_channel` first.', ephemeral: true });
+    }
+
     const massType = interaction.options.getString('mass_type', true);
     const date = interaction.options.getString('date', true);
     const time = interaction.options.getString('time', true);
@@ -490,14 +514,24 @@ async function handleMass(interaction, sub) {
     }
 
     const insert = db.prepare(`
-      INSERT INTO mass_sessions (guild_id, host_id, mass_type, scheduled_at, link, status, started_at)
+      INSERT INTO mass_sessions (
+        guild_id, host_id, mass_type, scheduled_at, link, status, started_at
+      )
       VALUES (?, ?, ?, ?, ?, 'active', ?)
     `);
-    const info = insert.run(interaction.guildId, interaction.user.id, massType.trim(), scheduledAt, link.trim(), Date.now());
+    const info = insert.run(
+      interaction.guildId,
+      interaction.user.id,
+      massType.trim(),
+      scheduledAt,
+      link.trim(),
+      Date.now()
+    );
 
     const row = db.prepare(`SELECT * FROM mass_sessions WHERE id = ?`).get(info.lastInsertRowid);
     const embed = buildMassEmbed(row, settings, 'Active');
     embed.setDescription('Press **End Mass** when the session is finished. After that, submit proof with `/mass proof`.');
+
     const buttons = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`mass_end:${row.id}`)
@@ -505,8 +539,23 @@ async function handleMass(interaction, sub) {
         .setStyle(ButtonStyle.Danger),
     );
 
-    await interaction.reply({ content: `Mass started. Session ID: **${row.id}**`, embeds: [embed], components: [buttons] });
-    return;
+    const sent = await massChannel.send({
+      content: '@here',
+      allowedMentions: { parse: ['everyone'] },
+      embeds: [embed],
+      components: [buttons],
+    });
+
+    db.prepare(`
+      UPDATE mass_sessions
+      SET mass_channel_id = ?, mass_message_id = ?
+      WHERE id = ?
+    `).run(massChannel.id, sent.id, row.id);
+
+    return interaction.reply({
+      content: `Mass posted in ${massChannel}. Session ID: **${row.id}**`,
+      ephemeral: true
+    });
   }
 
   if (sub === 'proof') {
@@ -883,11 +932,21 @@ async function handleButton(interaction) {
   const memberOk = isRegistered(interaction.guildId, interaction.user.id) || staffOk;
 
   if (kind === 'mass_end') {
-    const row = loadMassById(interaction.guildId, id);
-    if (!row) return interaction.reply({ content: 'That mass no longer exists.', ephemeral: true });
-    if (!row || (row.host_id !== interaction.user.id && !staffOk)) {
+    let row = loadMassById(interaction.guildId, id);
+
+    // Fallback in case the button lookup fails for any reason
+    if (!row) {
+      row = loadLatestActiveMass(interaction.guildId, interaction.user.id);
+    }
+
+    if (!row) {
+      return interaction.reply({ content: 'I could not find an active mass for you.', ephemeral: true });
+    }
+
+    if (row.host_id !== interaction.user.id && !staffOk) {
       return interaction.reply({ content: 'Only the host or staff can end this mass.', ephemeral: true });
     }
+
     if (row.status !== 'active') {
       return interaction.reply({ content: `This mass is already **${row.status}**.`, ephemeral: true });
     }
@@ -908,8 +967,21 @@ async function handleButton(interaction) {
         .setDisabled(true),
     );
 
-    await interaction.update({ embeds: [embed], components: [disabledRow] });
-    return interaction.followUp({
+    // Disable the button on the public mass post
+    if (updated.mass_channel_id && updated.mass_message_id) {
+      const massChannel = await interaction.guild.channels.fetch(updated.mass_channel_id).catch(() => null);
+      if (massChannel && massChannel.type === ChannelType.GuildText) {
+        const massMessage = await massChannel.messages.fetch(updated.mass_message_id).catch(() => null);
+        if (massMessage) {
+          await massMessage.edit({
+            embeds: [embed],
+            components: [disabledRow],
+          }).catch(() => null);
+        }
+      }
+    }
+
+    return interaction.reply({
       content: 'Mass ended. Please submit proof with `/mass proof` and attach an image.',
       ephemeral: true,
     });
