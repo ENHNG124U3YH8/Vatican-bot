@@ -1,0 +1,17 @@
+{
+  "name": "discord-staff-pay-bot",
+  "version": "1.0.0",
+  "description": "Staff registration, mass hosting, moderation logs, approval flows, and pay summaries.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "discord.js": "^14.22.1",
+    "dotenv": "^16.6.1",
+    "luxon": "^3.7.1"
+  }
+}
