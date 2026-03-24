@@ -493,11 +493,12 @@ async function handleMass(interaction, sub) {
   const settings = getGuildSettings(interaction.guildId);
   if (sub === 'start') {
     await interaction.deferReply({ ephemeral: true });
-    const existing = loadLatestActiveMass(interaction.guildId, interaction.user.id);
+    await interaction.deferReply({ ephemeral: true });
+
+const existing = loadLatestActiveMass(interaction.guildId, interaction.user.id);
 if (existing) {
-  return interaction.reply({
-    content: `You already have an active mass (#${existing.id}). End it before starting another.`,
-    ephemeral: true
+  return interaction.editReply({
+    content: `You already have an active mass (#${existing.id}). End it before starting another.`
   });
 }
     if (!requireRegisteredOrStaff(interaction, settings)) {
@@ -560,10 +561,9 @@ if (existing) {
       WHERE id = ?
     `).run(massChannel.id, sent.id, row.id);
 
-    return interaction.reply({
-      content: `Mass posted in ${massChannel}. Session ID: **${row.id}**`,
-    });
-  }
+    return interaction.editReply({
+  content: `Mass posted in ${massChannel}. Session ID: **${row.id}**`
+});
 
   if (sub === 'proof') {
     if (!requireRegisteredOrStaff(interaction, settings)) {
@@ -950,10 +950,6 @@ async function handleButton(interaction) {
       ephemeral: true
     });
   }
-   
-    if (!row) {
-      return interaction.reply({ content: 'I could not find an active mass for you.', ephemeral: true });
-    }
 
     if (row.host_id !== interaction.user.id && !staffOk) {
       return interaction.reply({ content: 'Only the host or staff can end this mass.', ephemeral: true });
@@ -985,7 +981,7 @@ async function handleButton(interaction) {
       if (massChannel && massChannel.type === ChannelType.GuildText) {
         const massMessage = await massChannel.messages.fetch(updated.mass_message_id).catch(() => null);
         if (massMessage) {
-          await interaction.message.edit({
+          await massMessage.edit({
   embeds: [embed],
   components: [disabledRow],
 });
