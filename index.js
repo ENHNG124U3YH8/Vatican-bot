@@ -1,5 +1,17 @@
 require('dotenv').config();
 require('./deploy-commands');
+
+/*
+  Force bot replies to be public unless explicitly overridden.
+  This converts ephemeral replies into public ones automatically.
+*/
+const originalReply = require('discord.js').Interaction.prototype.reply;
+require('discord.js').Interaction.prototype.reply = function (options) {
+  if (typeof options === 'object') {
+    options.ephemeral = false;
+  }
+  return originalReply.call(this, options);
+};
 const Database = require('better-sqlite3');
 const { DateTime } = require('luxon');
 const {
