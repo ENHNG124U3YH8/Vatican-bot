@@ -40,6 +40,18 @@ const commands = [
             .setRequired(true)
         )
     )
+      .addSubcommand(sub =>
+      sub
+        .setName('mass_channel')
+        .setDescription('Set the public mass announcement channel')
+        .addChannelOption(opt =>
+          opt
+            .setName('channel')
+            .setDescription('Mass channel')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(true)
+        )
+    )
     .addSubcommand(sub =>
       sub
         .setName('moderation_activity_channel')
