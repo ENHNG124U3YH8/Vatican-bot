@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./deploy-commands');
 const Database = require('better-sqlite3');
 const { DateTime } = require('luxon');
 const {
