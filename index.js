@@ -985,18 +985,18 @@ async function handleButton(interaction) {
       if (massChannel && massChannel.type === ChannelType.GuildText) {
         const massMessage = await massChannel.messages.fetch(updated.mass_message_id).catch(() => null);
         if (massMessage) {
-          await massMessage.edit({
-            embeds: [embed],
-            components: [disabledRow],
-          }).catch(() => null);
+          await interaction.message.edit({
+  embeds: [embed],
+  components: [disabledRow],
+});
         }
       }
     }
 
-    return interaction.reply({
-      content: 'Mass ended. Please submit proof with `/mass proof` and attach an image.',
-      ephemeral: true,
-    });
+    await interaction.followUp({
+  content: 'Mass ended. Please submit proof with `/mass proof`.',
+  ephemeral: true
+});
   }
 
   if (kind === 'mass_approve') {
