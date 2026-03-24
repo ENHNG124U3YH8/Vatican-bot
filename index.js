@@ -938,14 +938,16 @@ async function handleButton(interaction) {
   const staffOk = isStaff(interaction.member, settings);
   const memberOk = isRegistered(interaction.guildId, interaction.user.id) || staffOk;
 
-  if (kind === 'mass_end') {
-    let row = loadMassById(interaction.guildId, id);
+ if (kind === 'mass_end') {
+  const row = loadMassById(interaction.guildId, id);
 
-    // Fallback in case the button lookup fails for any reason
-    if (!row) {
-      row = loadLatestActiveMass(interaction.guildId, interaction.user.id);
-    }
-
+  if (!row) {
+    return interaction.reply({
+      content: 'That mass session could not be found.',
+      ephemeral: true
+    });
+  }
+   
     if (!row) {
       return interaction.reply({ content: 'I could not find an active mass for you.', ephemeral: true });
     }
