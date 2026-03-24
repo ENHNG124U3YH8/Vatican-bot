@@ -467,7 +467,7 @@ async function handleStaffList(interaction) {
       { name: 'Moderation approval channel', value: settings.moderation_approval_channel_id ? `<#${settings.moderation_approval_channel_id}>` : 'Not set', inline: false },
       { name: 'Pay period start', value: formatUnix(settings.pay_period_start), inline: false },
     );
-  return interaction.reply({ embeds: [embed], ephemeral: true });
+  return interaction.reply({ embeds: [embed] });
 }
 
 async function handleMass(interaction, sub) {
@@ -738,7 +738,7 @@ async function handleLeaderboard(interaction) {
         { name: 'Current pay window', value: `${formatUnix(window.start)} → ${formatUnix(window.end)}`, inline: false },
       );
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed] });
   }
 
   const shiftRows = db.prepare(`
@@ -1019,8 +1019,15 @@ async function handleModal(interaction) {
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
-});
 
+  client.user.setPresence({
+    activities: [{
+      name: "Vatican Systems",
+      type: 3
+    }],
+    status: "online"
+  });
+});
 client.on('interactionCreate', async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
