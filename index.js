@@ -623,13 +623,17 @@ if (sub === 'start') {
     const embed = buildMassEmbed(updated, settings, 'Pending staff approval');
     const components = [buildButtonRow('mass', updated.id)];
     const sent = await approvalChannel.send({ embeds: [embed], components });
-    db.prepare(`
-      UPDATE mass_sessions
-      SET approval_channel_id = ?, approval_message_id = ?
-      WHERE id = ?
-    `).run(approvalChannel.id, sent.id, updated.id);
-    return interaction.reply({ content: `Proof submitted for mass #${updated.id}.`, ephemeral: true });
-  }
+
+db.prepare(`
+  UPDATE mass_sessions
+  SET approval_channel_id = ?, approval_message_id = ?
+  WHERE id = ?
+`).run(approvalChannel.id, sent.id, updated.id);
+
+return interaction.reply({
+  content: `Proof submitted for mass #${updated.id}.`,
+  ephemeral: true
+});
 
   if (sub === 'status') {
     const masses = db.prepare(`
