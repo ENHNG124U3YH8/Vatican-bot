@@ -1,4 +1,4 @@
-vrequire('dotenv').config();
+require('dotenv').config();
 require('./deploy-commands');
 
 const Database = require('better-sqlite3');
