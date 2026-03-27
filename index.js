@@ -499,79 +499,83 @@ async function handleStaffList(interaction) {
 
 async function handleMass(interaction, sub) {
   const settings = getGuildSettings(interaction.guildId);
-  if (sub === 'start') {
-    await interaction.deferReply({ ephemeral: true });
-    await interaction.deferReply({ ephemeral: true });
+if (sub === 'start') {
+  await interaction.deferReply({ ephemeral: true });
 
-const existing = loadLatestActiveMass(interaction.guildId, interaction.user.id);
-if (existing) {
+  if (!requireRegisteredOrStaff(interaction, settings)) {
+    return interaction.editReply({ content: 'Only registered users can use the bot.' });
+  }
+
+  const existing = loadLatestActiveMass(interaction.guildId, interaction.user.id);
+  if (existing) {
+    return interaction.editReply({
+      content: `You already have an active mass (#${existing.id}). End it before starting another.`
+    });
+  }
+
+  const massChannel = await getApprovalChannel(interaction.guild, settings.mass_channel_id);
+  if (!massChannel) {
+    return interaction.editReply({
+      content: 'Mass channel is not set yet. Ask staff to use `/setup mass_channel` first.'
+    });
+  }
+
+  const massType = interaction.options.getString('mass_type', true);
+  const date = interaction.options.getString('date', true);
+  const time = interaction.options.getString('time', true);
+  const link = interaction.options.getString('link', true);
+
+  let scheduledAt;
+  try {
+    scheduledAt = parseGuildDateTime(date.trim(), time.trim(), getZone(settings));
+  } catch (err) {
+    return interaction.editReply({ content: err.message });
+  }
+
+  const insert = db.prepare(`
+    INSERT INTO mass_sessions (
+      guild_id, host_id, mass_type, scheduled_at, link, status, started_at
+    )
+    VALUES (?, ?, ?, ?, ?, 'active', ?)
+  `);
+
+  const info = insert.run(
+    interaction.guildId,
+    interaction.user.id,
+    massType.trim(),
+    scheduledAt,
+    link.trim(),
+    Date.now()
+  );
+
+  const row = db.prepare(`SELECT * FROM mass_sessions WHERE id = ?`).get(info.lastInsertRowid);
+  const embed = buildMassEmbed(row, settings, 'Active');
+  embed.setDescription('Press **End Mass** when the session is finished. After that, submit proof with `/mass proof`.');
+
+  const buttons = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`mass_end:${row.id}`)
+      .setLabel('End Mass')
+      .setStyle(ButtonStyle.Danger),
+  );
+
+  const sent = await massChannel.send({
+    content: '@here',
+    allowedMentions: { parse: ['everyone'] },
+    embeds: [embed],
+    components: [buttons],
+  });
+
+  db.prepare(`
+    UPDATE mass_sessions
+    SET mass_channel_id = ?, mass_message_id = ?
+    WHERE id = ?
+  `).run(massChannel.id, sent.id, row.id);
+
   return interaction.editReply({
-    content: `You already have an active mass (#${existing.id}). End it before starting another.`
+    content: `Mass posted in ${massChannel}. Session ID: **${row.id}**`
   });
 }
-    if (!requireRegisteredOrStaff(interaction, settings)) {
-      return interaction.reply({ content: 'Only registered users can use the bot.', ephemeral: true });
-    }
-
-    const massChannel = await getApprovalChannel(interaction.guild, settings.mass_channel_id);
-    if (!massChannel) {
-      return interaction.reply({ content: 'Mass channel is not set yet. Ask staff to use `/setup mass_channel` first.', ephemeral: true });
-    }
-
-    const massType = interaction.options.getString('mass_type', true);
-    const date = interaction.options.getString('date', true);
-    const time = interaction.options.getString('time', true);
-    const link = interaction.options.getString('link', true);
-
-    let scheduledAt;
-    try {
-      scheduledAt = parseGuildDateTime(date.trim(), time.trim(), getZone(settings));
-    } catch (err) {
-      return interaction.reply({ content: err.message, ephemeral: true });
-    }
-
-    const insert = db.prepare(`
-      INSERT INTO mass_sessions (
-        guild_id, host_id, mass_type, scheduled_at, link, status, started_at
-      )
-      VALUES (?, ?, ?, ?, ?, 'active', ?)
-    `);
-    const info = insert.run(
-      interaction.guildId,
-      interaction.user.id,
-      massType.trim(),
-      scheduledAt,
-      link.trim(),
-      Date.now()
-    );
-
-    const row = db.prepare(`SELECT * FROM mass_sessions WHERE id = ?`).get(info.lastInsertRowid);
-    const embed = buildMassEmbed(row, settings, 'Active');
-    embed.setDescription('Press **End Mass** when the session is finished. After that, submit proof with `/mass proof`.');
-
-    const buttons = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`mass_end:${row.id}`)
-        .setLabel('End Mass')
-        .setStyle(ButtonStyle.Danger),
-    );
-
-    const sent = await massChannel.send({
-      content: '@here',
-      allowedMentions: { parse: ['everyone'] },
-      embeds: [embed],
-      components: [buttons],
-    });
-
-    db.prepare(`
-      UPDATE mass_sessions
-      SET mass_channel_id = ?, mass_message_id = ?
-      WHERE id = ?
-    `).run(massChannel.id, sent.id, row.id);
-
-    return interaction.editReply({
-  content: `Mass posted in ${massChannel}. Session ID: **${row.id}**`
-});
 
   if (sub === 'proof') {
     if (!requireRegisteredOrStaff(interaction, settings)) {
