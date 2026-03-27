@@ -1,4 +1,4 @@
-require('dotenv').config();
+vrequire('dotenv').config();
 require('./deploy-commands');
 
 const Database = require('better-sqlite3');
@@ -1183,8 +1183,6 @@ client.on('interactionCreate', async interaction => {
     }
     }
 });
-
-}  // <-- ADD THIS LINE
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
