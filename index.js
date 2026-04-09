@@ -1187,7 +1187,7 @@ client.on('interactionCreate', async interaction => {
     }
   }
 });
-
+ 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
   throw new Error('Missing DISCORD_TOKEN in .env');
