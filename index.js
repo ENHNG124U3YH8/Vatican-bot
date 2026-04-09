@@ -634,8 +634,9 @@ return interaction.reply({
   content: `Proof submitted for mass #${updated.id}.`,
   ephemeral: true
 });
+}
 
-  if (sub === 'status') {
+if (sub === 'status') {
     const masses = db.prepare(`
       SELECT * FROM mass_sessions
       WHERE guild_id = ? AND host_id = ?
