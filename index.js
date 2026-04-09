@@ -1177,7 +1177,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isModalSubmit()) {
       return handleModal(interaction);
     }
-  } catch (err) {
+    } catch (err) {
     console.error(err);
     const msg = 'Something went wrong while processing that command.';
     if (interaction.deferred || interaction.replied) {
@@ -1185,7 +1185,7 @@ client.on('interactionCreate', async interaction => {
     } else {
       await interaction.reply({ content: msg, ephemeral: true }).catch(() => null);
     }
-    }
+  }
 });
 
 const token = process.env.DISCORD_TOKEN;
